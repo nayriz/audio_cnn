@@ -8,7 +8,6 @@ Created on Sun Jul  1 15:12:25 2018
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python import debug as tf_debug
 
 X_train = np.load('data/X_train_small.npy')
 y_train = np.load('data/y_train_small.npy')
@@ -28,8 +27,8 @@ n_test = X_test.shape[0]
 batch_size_train = 32
 batch_size_test = 128
 
-n_batch_train = int(n_train/batch_size_train)
-n_batch_test = int(n_test/batch_size_test)
+n_batch_train = int(np.ceil(n_train/batch_size_train))
+n_batch_test = int(np.ceil(n_test/batch_size_test))
 
 inds_train = list(range(n_train))
 inds_test = list(range(n_test))
@@ -69,7 +68,7 @@ loss_i = tf.nn.softmax_cross_entropy_with_logits(logits=logits,labels=labels_one
 
 loss = tf.reduce_mean(loss_i,name='loss')
 
-optimizer = tf.train.AdamOptimizer(.000005).minimize(loss) 
+optimizer = tf.train.AdamOptimizer(.0005).minimize(loss) 
 
 y_preds = tf.nn.softmax(logits)
 y_preds_class = tf.argmax(y_preds,axis=-1)
@@ -77,7 +76,6 @@ n_correct = n_correct_preds(y_preds_class,labels)
 
 ##############################################################################
 sess.run(tf.initialize_all_variables())
-#sess = tf_debug.TensorBoardDebugWrapperSession(sess, "talisol:7000")
 
 for e in range(n_epoch):
 
@@ -89,7 +87,10 @@ for e in range(n_epoch):
     
     for i in range(n_batch_train):
         
-        inds_batch = inds_epoch[i*batch_size_train:(i+1)*batch_size_train]
+        if i == n_batch_train-1:
+            inds_batch = inds_epoch[i*batch_size_train:] 
+        else :           
+            inds_batch = inds_epoch[i*batch_size_train:(i+1)*batch_size_train]            
         X_batch = X_train[inds_batch]
         y_batch = y_train[inds_batch]
         
@@ -102,14 +103,39 @@ for e in range(n_epoch):
 
     # TEST    
     total_correct = 0
+    total_samples = 0          
     for i in range(n_batch_test):
 
-        inds_batch = inds_test[i*batch_size_test:(i+1)*batch_size_test]
+        if i == n_batch_train-1:
+            inds_batch = inds_test[i*batch_size_test:]
+        else :    
+            inds_batch = inds_test[i*batch_size_test:(i+1)*batch_size_test] 
+            
         X_batch = X_test[inds_batch]
         y_batch = y_test[inds_batch]
         
         feed_dict = {X: X_batch, labels: y_batch}
         
         total_correct += sess.run(n_correct,feed_dict)
-
-    print(total_loss,total_correct,n_batch_test*batch_size_test,total_correct/(n_batch_test*batch_size_test))
+        total_samples += len(inds_batch)
+        
+    print(total_loss,total_correct,total_samples,total_correct/(n_batch_test*batch_size_test))
+    
+    # TRAINING ACCURACY
+#    total_correct = 0
+#    total_samples = 0    
+#    for i in range(n_batch_train):
+#        
+#        if i == n_batch_train-1:
+#            inds_batch = inds_epoch[i*batch_size_train:] 
+#        else :           
+#            inds_batch = inds_epoch[i*batch_size_train:(i+1)*batch_size_train]            
+#        X_batch = X_train[inds_batch]
+#        y_batch = y_train[inds_batch]
+#        
+#        feed_dict = {X: X_batch, labels: y_batch}
+#        
+#        total_correct += sess.run(n_correct,feed_dict)
+#        total_samples += len(inds_batch)
+#
+#    print(total_loss,total_correct,total_samples,total_correct/(n_batch_train*batch_size_train))    
